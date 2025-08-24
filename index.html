@@ -121,18 +121,24 @@
                 document.getElementById('container').classList.add('error');
             }
             
-            // Method 1: Try Android Intent URL (most reliable for Android)
-            const intentUrl = `intent://oauth/${provider}${code ? `?code=${code}&state=${state || ''}` : `?error=${error || 'unknown'}`}#Intent;scheme=probler;package=ai.probler.solvem;end`;
+            // Method 1: Direct custom scheme (most compatible)
+            // Try direct navigation first - this works best with AppAuth
+            window.location.replace(redirectUrl);
             
-            // Try intent URL first
+            // Method 2: Fallback with setTimeout
             setTimeout(() => {
-                window.location.href = intentUrl;
+                window.location.href = redirectUrl;
             }, 100);
             
-            // Method 2: Use location.replace (better than location.href)
+            // Method 3: Android Intent URL (last resort - can trigger Play Store)
+            // Only try this if user is still on page after 2 seconds
+            const intentUrl = `intent://oauth/${provider}${code ? `?code=${code}&state=${state || ''}` : `?error=${error || 'unknown'}`}#Intent;scheme=probler;package=ai.probler.solvem;end`;
             setTimeout(() => {
-                window.location.replace(redirectUrl);
-            }, 500);
+                // Check if we're still on this page
+                if (document.getElementById('container')) {
+                    window.location.href = intentUrl;
+                }
+            }, 2000);
             
             // Method 3: Hidden iframe fallback
             setTimeout(() => {
