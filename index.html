@@ -94,6 +94,18 @@
                 if (state) {
                     redirectUrl += `&state=${encodeURIComponent(state)}`;
                 }
+                
+                // Show success message
+                document.getElementById('container').innerHTML = `
+                    <h1 style="color: #4caf50;">✓ Authentication Successful</h1>
+                    <p>Returning to Probler app...</p>
+                    <p style="margin-top: 2rem;">
+                        <a href="${redirectUrl}" style="color: white; padding: 10px 20px; background: rgba(255,255,255,0.2); border-radius: 8px; text-decoration: none; display: inline-block;">
+                            Open Probler App
+                        </a>
+                    </p>
+                `;
+                
             } else if (error) {
                 redirectUrl += `?error=${encodeURIComponent(error)}`;
                 if (errorDescription) {
@@ -109,25 +121,41 @@
                 document.getElementById('container').classList.add('error');
             }
             
-            // Try to redirect to the app
-            window.location.href = redirectUrl;
+            // Method 1: Try Android Intent URL (most reliable for Android)
+            const intentUrl = `intent://oauth/${provider}${code ? `?code=${code}&state=${state || ''}` : `?error=${error || 'unknown'}`}#Intent;scheme=probler;package=ai.probler.solvem;end`;
             
-            // Fallback: If the app doesn't open after 3 seconds, show instructions
+            // Try intent URL first
             setTimeout(() => {
-                document.getElementById('container').innerHTML = `
-                    <h1>Open Probler App</h1>
-                    <p>If the app didn't open automatically:</p>
-                    <p style="margin-top: 1rem;">
-                        <a href="${redirectUrl}" style="color: white; text-decoration: underline;">
-                            Click here to open the app
-                        </a>
-                    </p>
-                    <p style="margin-top: 1rem; font-size: 0.9rem; opacity: 0.7;">
-                        Or copy this link:<br>
-                        <code style="word-break: break-all;">${redirectUrl}</code>
-                    </p>
-                `;
-            }, 3000);
+                window.location.href = intentUrl;
+            }, 100);
+            
+            // Method 2: Use location.replace (better than location.href)
+            setTimeout(() => {
+                window.location.replace(redirectUrl);
+            }, 500);
+            
+            // Method 3: Hidden iframe fallback
+            setTimeout(() => {
+                const iframe = document.createElement('iframe');
+                iframe.style.display = 'none';
+                iframe.src = redirectUrl;
+                document.body.appendChild(iframe);
+            }, 1000);
+            
+            // Show manual button after 2 seconds if still on page
+            setTimeout(() => {
+                const container = document.getElementById('container');
+                if (!container.innerHTML.includes('Open Probler App')) {
+                    container.innerHTML += `
+                        <p style="margin-top: 2rem; font-size: 0.9rem; opacity: 0.8;">
+                            App not opening? 
+                            <a href="${redirectUrl}" style="color: white; text-decoration: underline;">
+                                Click here
+                            </a>
+                        </p>
+                    `;
+                }
+            }, 2000);
         }
         
         // Redirect immediately

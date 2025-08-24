@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OAuth Debug - Probler</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #0f0;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #0f0;
+            border-radius: 5px;
+        }
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            margin: 10px;
+            background: #0f0;
+            color: #000;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        code {
+            background: #000;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <h1>OAuth Debug Page</h1>
+    
+    <div class="section">
+        <h2>Current URL:</h2>
+        <code id="current-url"></code>
+    </div>
+    
+    <div class="section">
+        <h2>Parameters Received:</h2>
+        <div id="params"></div>
+    </div>
+    
+    <div class="section">
+        <h2>Redirect URL Generated:</h2>
+        <code id="redirect-url"></code>
+    </div>
+    
+    <div class="section">
+        <h2>Manual Actions:</h2>
+        <a id="app-link" class="button" href="#">Open App (Custom Scheme)</a>
+        <a id="intent-link" class="button" href="#">Open App (Android Intent)</a>
+        <a id="close-link" class="button" href="#" onclick="window.close()">Close Window</a>
+    </div>
+    
+    <div class="section">
+        <h2>Debug Log:</h2>
+        <div id="log"></div>
+    </div>
+
+    <script>
+        const log = (msg) => {
+            const logDiv = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `<div>[${time}] ${msg}</div>`;
+        };
+
+        // Show current URL
+        document.getElementById('current-url').textContent = window.location.href;
+        
+        // Parse parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+        const state = urlParams.get('state');
+        const error = urlParams.get('error');
+        const errorDescription = urlParams.get('error_description');
+        
+        // Show parameters
+        const paramsDiv = document.getElementById('params');
+        paramsDiv.innerHTML = `
+            <div>Code: <code>${code || 'null'}</code></div>
+            <div>State: <code>${state || 'null'}</code></div>
+            <div>Error: <code>${error || 'null'}</code></div>
+            <div>Error Description: <code>${errorDescription || 'null'}</code></div>
+        `;
+        
+        // Determine provider
+        const path = window.location.pathname;
+        let provider = 'linkedin'; // default for debug
+        if (path.includes('linkedin')) provider = 'linkedin';
+        else if (path.includes('google')) provider = 'google';
+        else if (path.includes('microsoft')) provider = 'microsoft';
+        else if (path.includes('github')) provider = 'github';
+        
+        // Build redirect URLs
+        let redirectUrl = `probler://oauth/${provider}`;
+        if (code) {
+            redirectUrl += `?code=${encodeURIComponent(code)}`;
+            if (state) redirectUrl += `&state=${encodeURIComponent(state)}`;
+        } else if (error) {
+            redirectUrl += `?error=${encodeURIComponent(error)}`;
+        }
+        
+        // Build Android Intent URL
+        const intentUrl = `intent://oauth/${provider}${code ? `?code=${code}&state=${state || ''}` : `?error=${error || 'unknown'}`}#Intent;scheme=probler;package=ai.probler.solvem;end`;
+        
+        // Show redirect URL
+        document.getElementById('redirect-url').textContent = redirectUrl;
+        
+        // Set button links
+        document.getElementById('app-link').href = redirectUrl;
+        document.getElementById('intent-link').href = intentUrl;
+        
+        // Log initial state
+        log('Page loaded');
+        log(`Provider detected: ${provider}`);
+        log(`Custom scheme URL: ${redirectUrl}`);
+        log(`Android Intent URL: ${intentUrl}`);
+        
+        // Try different redirect methods if we have OAuth data
+        if (code || error) {
+            log('OAuth data detected, attempting redirects...');
+            
+            // Method 1: Android Intent (most reliable on Android)
+            setTimeout(() => {
+                log('Attempting Android Intent URL...');
+                window.location.href = intentUrl;
+            }, 500);
+            
+            // Method 2: Custom scheme with replace
+            setTimeout(() => {
+                log('Attempting custom scheme with location.replace...');
+                window.location.replace(redirectUrl);
+            }, 1500);
+            
+            // Method 3: Hidden iframe
+            setTimeout(() => {
+                log('Attempting hidden iframe...');
+                const iframe = document.createElement('iframe');
+                iframe.style.display = 'none';
+                iframe.src = redirectUrl;
+                document.body.appendChild(iframe);
+            }, 2500);
+            
+            // Log if still on page
+            setTimeout(() => {
+                log('Still on page after 3 seconds - manual intervention may be needed');
+            }, 3000);
+        } else {
+            log('No OAuth parameters detected - manual test mode');
+        }
+    </script>
+</body>
+</html>
